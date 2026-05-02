@@ -75,7 +75,7 @@ const { useState, useEffect, useRef } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.11';
+const APP_VERSION = '0.1.12';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -277,6 +277,49 @@ function SaveButtons(props) {
   );
 }
 
+// ── LATEST RECALLS VIEW ───────────────────────────────────────────────────────
+// In-page view (not a separate tab). User toggles it from a link on the Search
+// page. Shows Class I + II FDA recalls, newest first.
+function LatestRecallsView(props) {
+  const [items, setItems] = useState(null);
+  const [busy, setBusy] = useState(true);
+
+  useEffect(function() {
+    setBusy(true);
+    fetch(API_BASE + '/recalls/recent?limit=25')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setItems(d.results || []); setBusy(false); })
+      .catch(function() { setBusy(false); setItems([]); });
+  }, []);
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl text-white font-bold">Latest Recalls</h2>
+        <button onClick={props.onBack}
+          className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+          ← Back to Search
+        </button>
+      </div>
+      <p className="text-gray-400 text-sm mb-5">Most recent Class I and Class II FDA recalls.</p>
+      {busy ? (
+        <p className="text-gray-500 text-sm">Loading…</p>
+      ) : (items === null || items.length === 0) ? (
+        <div className="card-steel rounded-lg p-5 text-center">
+          <p className="text-gray-300">No recent Class I/II recalls available.</p>
+        </div>
+      ) : items.map(function(r) {
+        return (
+          <RecallCard key={r.id} recall={r}>
+            <SaveButtons brand={r.brand} product_name={null} upc={r.upc || null} />
+          </RecallCard>
+        );
+      })}
+    </div>
+  );
+}
+
+
 // ── CONFIRMED SAVE BUTTONS ────────────────────────────────────────────────────
 // Used when user is saving an unrecognized/typo'd brand. Forces an explicit
 // "yes I really mean this exact spelling" click before the save options appear.
@@ -301,6 +344,7 @@ function SearchPage() {
   const [results, setResults] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [showLatest, setShowLatest] = useState(false);
 
   function doSearch(overrideQ) {
     const query = ((overrideQ != null ? overrideQ : q) || '').trim();
@@ -324,11 +368,15 @@ function SearchPage() {
       .catch(function() { setBusy(false); setResults([]); });
   }
 
+  if (showLatest) {
+    return <LatestRecallsView onBack={function(){ setShowLatest(false); }} />;
+  }
+
   return (
     <div className="px-4 pt-4 pb-24">
       <h2 className="text-2xl text-white font-bold mb-2">Search Recalls</h2>
       <p className="text-gray-400 text-sm mb-4">Type a brand or product. We'll check FDA recalls.</p>
-      <div className="flex gap-2 mb-5">
+      <div className="flex gap-2 mb-3">
         <input value={q} onChange={function(e){ setQ(e.target.value); }}
           onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
           placeholder="e.g., Reser's, tuna, Cheerios"
@@ -338,6 +386,11 @@ function SearchPage() {
           {busy ? '...' : 'Search'}
         </button>
       </div>
+
+      <button onClick={function(){ setShowLatest(true); }}
+        className="text-sm text-gray-300 hover:text-white underline-offset-2 hover:underline mb-5 inline-block">
+        🆕 See latest recalls →
+      </button>
 
       {results === null ? (
         <p className="text-gray-500 text-sm">Search to see results.</p>
