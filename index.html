@@ -22,39 +22,44 @@
 <style>
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
   html, body { height: 100%; overflow-x: hidden; margin: 0; padding: 0; background: #1c1f23; }
-  .pantry-bg {
-    background-image: url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
+  /* Real brushed stainless steel image — global app background. */
+  .app-bg {
+    background-image:
+      linear-gradient(rgba(20,22,26,0.55), rgba(20,22,26,0.65)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/steel_bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+  /* Login screen — pantry photo, lighter overlay so the photo reads. */
+  .pantry-bg-login {
+    background-image:
+      linear-gradient(rgba(15,18,22,0.45), rgba(15,18,22,0.65)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: scroll;
   }
-  .steel-bg {
-    background-color: #2a2d33;
+  /* Pantry page — pantry photo, slightly darker than login so text on cards reads. */
+  .pantry-page-bg {
     background-image:
-      repeating-linear-gradient(90deg,
-        rgba(255,255,255,0.025) 0px,
-        rgba(255,255,255,0.025) 1px,
-        transparent 1px, transparent 3px),
-      linear-gradient(180deg, #34373d 0%, #25272c 100%);
-    background-attachment: fixed;
+      linear-gradient(rgba(15,18,22,0.55), rgba(15,18,22,0.7)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: scroll;
+    min-height: 100vh;
   }
   .card-steel {
     background: linear-gradient(180deg, rgba(60,64,72,0.85) 0%, rgba(40,42,48,0.85) 100%);
     border: 1px solid rgba(180,188,200,0.18);
     box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.35);
   }
-  .pantry-glow {
-    box-shadow: 0 0 12px rgba(255,210,140,0.55), 0 0 24px rgba(255,180,90,0.25), inset 0 0 8px rgba(255,210,140,0.15);
-    border-color: rgba(255,210,140,0.6) !important;
-  }
-  .pantry-text-glow {
-    text-shadow: 0 0 6px rgba(255,210,140,0.7), 0 0 12px rgba(255,180,90,0.35);
-  }
   .nav-btn { transition: all 0.18s ease; }
   .nav-btn-active { background: rgba(255,255,255,0.08); border-color: rgba(180,188,200,0.35); }
   .alert-pill { background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%); }
   .class-I { background: #b91c1c; }
-  .class-II { background: #b45309; }
+  .class-II { background: #475569; }
   .class-III { background: #4b5563; }
   .scrollbar-thin::-webkit-scrollbar { width: 6px; }
   .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(180,188,200,0.3); border-radius: 3px; }
@@ -69,7 +74,7 @@ const { useState, useEffect, useRef } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.6';
+const APP_VERSION = '0.1.10';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -144,7 +149,7 @@ function LoginScreen(props) {
   }
 
   return (
-    <div className="pantry-bg min-h-screen flex flex-col items-center justify-between py-12 px-6">
+    <div className="pantry-bg-login min-h-screen flex flex-col items-center justify-between py-12 px-6">
       <div className="flex-1 flex flex-col items-center justify-center w-full">
         <div className="card-steel rounded-2xl p-8 max-w-sm w-full">
           <h1 className="text-5xl font-bold text-white mb-2 tracking-wide text-center">Mealwatch</h1>
@@ -248,7 +253,7 @@ function SaveButtons(props) {
     return <p className="text-emerald-300 text-xs">✓ Added to Watchlist — we'll alert you on new recalls</p>;
   }
   if (savedAs === 'pantry') {
-    return <p className="text-amber-300 text-xs pantry-text-glow">✓ Saved to Pantry — tap any time to recheck</p>;
+    return <p className="text-slate-100 text-xs">✓ Saved to Pantry — tap any time to recheck</p>;
   }
   if (savedAs === 'duplicate') {
     return <p className="text-gray-400 text-xs">Already on your list. Check Watchlist or Pantry tab.</p>;
@@ -264,7 +269,7 @@ function SaveButtons(props) {
         {watchLabel}
       </button>
       <button onClick={function(){ save(false); }} disabled={busy}
-        className="text-xs px-3 py-1.5 rounded bg-amber-900/50 text-amber-100 border border-amber-700 hover:bg-amber-800/50 disabled:opacity-50">
+        className="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-100 border border-slate-400 hover:bg-slate-600 disabled:opacity-50">
         {pantryLabel}
       </button>
     </div>
@@ -445,7 +450,7 @@ function ItemDrawer(props) {
         <div className="flex flex-wrap gap-2 mt-4">
           {item.monitoring ? (
             <button onClick={function(){ moveTo(false); }}
-              className="text-xs px-3 py-1.5 rounded bg-amber-900/50 text-amber-100 border border-amber-700 hover:bg-amber-800/50">
+              className="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-100 border border-slate-400 hover:bg-slate-600">
               Move to Pantry
             </button>
           ) : (
@@ -506,15 +511,15 @@ function WatchlistPage(props) {
 function PantryPage(props) {
   const pantry = props.items.filter(function(i){ return !i.monitoring; });
   return (
-    <div className="px-4 pt-4 pb-24">
+    <div className="pantry-page-bg px-4 pt-4 pb-24">
       <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-2xl font-bold text-amber-100 pantry-text-glow">PANTRY</h2>
+        <h2 className="text-3xl font-bold text-white tracking-widest">PANTRY</h2>
       </div>
-      <p className="text-gray-400 text-sm mb-5">Saved items you can check anytime. No alerts — just tap to recheck.</p>
+      <p className="text-gray-200 text-sm mb-5 bg-black/40 inline-block px-2 py-1 rounded">Saved items you can check anytime. No alerts — just tap to recheck.</p>
       {pantry.length === 0 ? (
         <div className="card-steel rounded-lg p-5 text-center">
-          <p className="text-gray-300 mb-1">Your Pantry is empty</p>
-          <p className="text-gray-500 text-sm">Save items you want to check later but don't need pinged about.</p>
+          <p className="text-gray-200 mb-1">Your Pantry is empty</p>
+          <p className="text-gray-400 text-sm">Save items you want to check later but don't need pinged about.</p>
         </div>
       ) : (
         pantry.map(function(item) {
@@ -526,7 +531,7 @@ function PantryPage(props) {
                   <p className="text-white font-semibold">{item.brand}</p>
                   {item.product_name ? <p className="text-gray-400 text-sm">{item.product_name}</p> : null}
                 </div>
-                <span className="text-amber-300 text-xs">tap to check</span>
+                <span className="text-slate-300 text-xs">tap to check</span>
               </div>
             </button>
           );
@@ -608,7 +613,7 @@ function AboutPage(props) {
           <span className="text-white">Watchlist</span> — items we check every 12 hours. We'll alert you on new recalls.
         </p>
         <p className="text-gray-300 text-sm">
-          <span className="text-amber-100 pantry-text-glow">Pantry</span> — items you save for later, like things in your actual pantry. No alerts; tap any item to recheck on demand.
+          <span className="text-slate-100">Pantry</span> — items you save for later, like things in your actual pantry. No alerts; tap any item to recheck on demand.
         </p>
       </div>
 
@@ -648,20 +653,12 @@ function BottomNav(props) {
       <div className="flex justify-around items-center max-w-lg mx-auto">
         {tabs.map(function(t) {
           const active = props.page === t.id;
-          const isPantry = t.id === 'pantry';
-          let cls = "nav-btn flex-1 mx-0.5 py-2 text-xs rounded-lg border ";
-          if (isPantry) {
-            cls = cls + (active
-              ? "bg-amber-900/40 text-amber-100 pantry-glow pantry-text-glow font-bold "
-              : "border-amber-800/40 text-amber-200/80 hover:bg-amber-900/20 ");
-          } else {
-            cls = cls + (active
-              ? "nav-btn-active text-white "
-              : "border-transparent text-gray-400 hover:text-gray-200 ");
-          }
+          let cls = "nav-btn flex-1 mx-0.5 py-2 text-xs rounded-lg border " + (active
+            ? "nav-btn-active text-white "
+            : "border-transparent text-gray-400 hover:text-gray-200 ");
           return (
             <button key={t.id} className={cls} onClick={function(){ props.onChange(t.id); }}>
-              {isPantry ? <span className="tracking-widest">{t.label.toUpperCase()}</span> : t.label}
+              {t.label}
               {t.id === 'alerts' && props.alertCount > 0 ?
                 <span className="ml-1 inline-block bg-red-600 text-white text-[10px] px-1.5 rounded-full">{props.alertCount}</span>
                 : null}
@@ -716,7 +713,7 @@ function App() {
   }
 
   return (
-    <div className="steel-bg min-h-screen">
+    <div className="app-bg min-h-screen">
       <header className="px-4 pt-4 pb-2 flex justify-between items-center">
         <h1 className="text-white text-xl font-bold tracking-wide">Mealwatch</h1>
         <p className="text-gray-500 text-xs">{user.email}</p>
