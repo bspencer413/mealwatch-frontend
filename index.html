@@ -830,4 +830,836 @@ function App() {
 ReactDOM.render(<App />, document.getElementById('root'));
 </script>
 </body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1f2937">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Mealwatch">
+<title>Mealwatch</title>
+<meta name="description" content="Mealwatch — what's on your plate, before it's on your plate. Recall alerts for what's in your pantry.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://meal.watch">
+<meta property="og:title" content="Mealwatch — Your pantry, watching your back.">
+<meta property="og:description" content="Recall alerts for what's in your pantry. Brand, product, or barcode.">
+<meta property="og:url" content="https://meal.watch">
+<meta property="og:type" content="website">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
+  html, body { height: 100%; overflow-x: hidden; margin: 0; padding: 0; background: #1c1f23; }
+  /* Real brushed stainless steel image — global app background.
+     Light overlay only, so the texture shows through. */
+  .app-bg {
+    background-image:
+      linear-gradient(rgba(20,22,26,0.25), rgba(20,22,26,0.35)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/steel_bg.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+  /* Login screen — pantry photo, lighter overlay so the photo reads. */
+  .pantry-bg-login {
+    background-image:
+      linear-gradient(rgba(15,18,22,0.45), rgba(15,18,22,0.65)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: scroll;
+  }
+  /* Pantry page — pantry photo, slightly darker than login so text on cards reads. */
+  .pantry-page-bg {
+    background-image:
+      linear-gradient(rgba(15,18,22,0.55), rgba(15,18,22,0.7)),
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: scroll;
+    min-height: 100vh;
+  }
+  .card-steel {
+    background: linear-gradient(180deg, rgba(60,64,72,0.85) 0%, rgba(40,42,48,0.85) 100%);
+    border: 1px solid rgba(180,188,200,0.18);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 4px 12px rgba(0,0,0,0.35);
+  }
+  .nav-btn { transition: all 0.18s ease; }
+  .nav-btn-active { background: rgba(255,255,255,0.08); border-color: rgba(180,188,200,0.35); }
+  .alert-pill { background: linear-gradient(180deg, #b91c1c 0%, #7f1d1d 100%); }
+  .class-I { background: #b91c1c; }
+  .class-II { background: #475569; }
+  .class-III { background: #4b5563; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(180,188,200,0.3); border-radius: 3px; }
+  .drawer-backdrop { background: rgba(0,0,0,0.6); }
+  input, button, select, textarea { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API_BASE = 'https://mealwatch-backend.onrender.com';
+const APP_VERSION = '0.1.12';
+const TOKEN_KEY = 'mealwatch_token';
+const USER_KEY = 'mealwatch_user';
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function getToken() {
+  try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
+}
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+function jsonHeaders() {
+  return Object.assign({ 'Content-Type': 'application/json' }, authHeaders());
+}
+function fmtDate(s) {
+  if (!s) return '';
+  // openFDA dates come as YYYYMMDD
+  if (/^\d{8}$/.test(s)) {
+    return s.slice(0,4) + '-' + s.slice(4,6) + '-' + s.slice(6,8);
+  }
+  if (typeof s === 'string' && s.length >= 10) return s.slice(0, 10);
+  return s;
+}
+function classBadge(cls) {
+  const c = (cls || '').toString().trim();
+  if (c.startsWith('I') && !c.startsWith('II')) return { label: 'Class I', cls: 'class-I' };
+  if (c.startsWith('II') && !c.startsWith('III')) return { label: 'Class II', cls: 'class-II' };
+  if (c.startsWith('III')) return { label: 'Class III', cls: 'class-III' };
+  if (c === '1' || c === 'I') return { label: 'Class I', cls: 'class-I' };
+  return { label: c ? 'Class ' + c : 'Unclassified', cls: 'class-III' };
+}
+
+// ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
+function LoginScreen(props) {
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  function submit() {
+    setErr('');
+    if (!email || !password) { setErr('Email and password required'); return; }
+    if (mode === 'register' && password.length < 8) {
+      setErr('Password must be at least 8 characters');
+      return;
+    }
+    setBusy(true);
+    const path = mode === 'register' ? '/auth/register' : '/auth/login';
+    fetch(API_BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    })
+      .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, d: d }; }); })
+      .then(function(res) {
+        setBusy(false);
+        if (!res.ok) { setErr(res.d.detail || 'Auth failed'); return; }
+        try {
+          localStorage.setItem(TOKEN_KEY, res.d.token);
+          localStorage.setItem(USER_KEY, JSON.stringify({ user_id: res.d.user_id, email: res.d.email }));
+        } catch (e) {}
+        props.onAuth({ user_id: res.d.user_id, email: res.d.email });
+      })
+      .catch(function() { setBusy(false); setErr('Network error'); });
+  }
+
+  return (
+    <div className="pantry-bg-login min-h-screen flex flex-col items-center justify-between py-12 px-6">
+      <div className="flex-1 flex flex-col items-center justify-center w-full">
+        <div className="card-steel rounded-2xl p-8 max-w-sm w-full">
+          <h1 className="text-5xl font-bold text-white mb-2 tracking-wide text-center">Mealwatch</h1>
+          <p className="text-gray-300 text-base text-center mb-6">Your pantry, watching your back.</p>
+
+          <div className="flex mb-5 rounded-lg overflow-hidden border border-gray-600">
+            <button onClick={function(){ setMode('login'); setErr(''); }}
+              className={"flex-1 py-2 text-sm " + (mode === 'login' ? 'bg-gray-700 text-white' : 'bg-transparent text-gray-400')}>
+              Sign In
+            </button>
+            <button onClick={function(){ setMode('register'); setErr(''); }}
+              className={"flex-1 py-2 text-sm " + (mode === 'register' ? 'bg-gray-700 text-white' : 'bg-transparent text-gray-400')}>
+              Create Account
+            </button>
+          </div>
+
+          <input type="email" placeholder="Email" value={email}
+            onChange={function(e){ setEmail(e.target.value); }}
+            autoComplete="email"
+            className="w-full mb-3 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:border-gray-400 focus:outline-none" />
+          <input type="password" placeholder="Password" value={password}
+            onChange={function(e){ setPassword(e.target.value); }}
+            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            className="w-full mb-4 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:border-gray-400 focus:outline-none" />
+
+          {err ? <p className="text-red-300 text-sm mb-3 text-center">{err}</p> : null}
+
+          <button onClick={submit} disabled={busy}
+            className="w-full py-2 rounded bg-gray-200 text-gray-900 font-semibold hover:bg-white disabled:opacity-50">
+            {busy ? '...' : (mode === 'register' ? 'Create Account' : 'Sign In')}
+          </button>
+        </div>
+      </div>
+
+      <p className="text-gray-300 text-xs bg-black/40 px-3 py-1 rounded-full">
+        app v{APP_VERSION}
+      </p>
+    </div>
+  );
+}
+
+// ── RECALL CARD ───────────────────────────────────────────────────────────────
+function RecallCard(props) {
+  const r = props.recall;
+  const badge = classBadge(r.classification);
+  return (
+    <div className="card-steel rounded-lg p-4 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex-1">
+          <p className="text-white font-semibold">{r.brand || 'Unknown brand'}</p>
+          <p className="text-gray-300 text-sm mt-1">{r.product_description || ''}</p>
+        </div>
+        <span className={"text-white text-xs px-2 py-1 rounded font-bold whitespace-nowrap " + badge.cls}>
+          {badge.label}
+        </span>
+      </div>
+      {r.reason ? <p className="text-gray-400 text-xs mb-2"><span className="text-gray-300">Reason:</span> {r.reason}</p> : null}
+      {r.distribution ? <p className="text-gray-400 text-xs mb-2"><span className="text-gray-300">Distribution:</span> {r.distribution}</p> : null}
+      <div className="flex justify-between text-gray-500 text-xs mt-2">
+        <span>{fmtDate(r.recall_date)}</span>
+        <span>{r.source ? r.source.toUpperCase() : ''}</span>
+      </div>
+      {props.children ? <div className="mt-3 flex gap-2">{props.children}</div> : null}
+    </div>
+  );
+}
+
+// ── SAVE BUTTONS ──────────────────────────────────────────────────────────────
+function SaveButtons(props) {
+  // props: brand, product_name (optional), upc (optional), onSaved, explicit
+  const [busy, setBusy] = useState(false);
+  const [savedAs, setSavedAs] = useState(null); // 'watchlist' | 'pantry' | 'duplicate' | null
+
+  function save(monitoring) {
+    if (!props.brand) return;
+    setBusy(true);
+    fetch(API_BASE + '/watchlist', {
+      method: 'POST',
+      headers: jsonHeaders(),
+      body: JSON.stringify({
+        brand: props.brand,
+        product_name: props.product_name || null,
+        upc: props.upc || null,
+        monitoring: monitoring
+      })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        setBusy(false);
+        if (d.duplicate) {
+          setSavedAs('duplicate');
+        } else {
+          setSavedAs(monitoring ? 'watchlist' : 'pantry');
+        }
+        if (props.onSaved) props.onSaved(d);
+      })
+      .catch(function() { setBusy(false); });
+  }
+
+  if (savedAs === 'watchlist') {
+    return <p className="text-emerald-300 text-xs">✓ Added to Watchlist — we'll alert you on new recalls</p>;
+  }
+  if (savedAs === 'pantry') {
+    return <p className="text-slate-100 text-xs">✓ Saved to Pantry — tap any time to recheck</p>;
+  }
+  if (savedAs === 'duplicate') {
+    return <p className="text-gray-400 text-xs">Already on your list. Check Watchlist or Pantry tab.</p>;
+  }
+
+  const watchLabel = props.explicit ? "Watch \"" + props.brand + "\"" : "Add to Watchlist";
+  const pantryLabel = props.explicit ? "Save \"" + props.brand + "\" to Pantry" : "Save to Pantry";
+
+  return (
+    <div className="flex gap-2 flex-wrap">
+      <button onClick={function(){ save(true); }} disabled={busy}
+        className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600 disabled:opacity-50">
+        {watchLabel}
+      </button>
+      <button onClick={function(){ save(false); }} disabled={busy}
+        className="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-100 border border-slate-400 hover:bg-slate-600 disabled:opacity-50">
+        {pantryLabel}
+      </button>
+    </div>
+  );
+}
+
+// ── LATEST RECALLS VIEW ───────────────────────────────────────────────────────
+// In-page view (not a separate tab). User toggles it from a link on the Search
+// page. Shows Class I + II FDA recalls, newest first.
+function LatestRecallsView(props) {
+  const [items, setItems] = useState(null);
+  const [busy, setBusy] = useState(true);
+
+  useEffect(function() {
+    setBusy(true);
+    fetch(API_BASE + '/recalls/recent?limit=25')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setItems(d.results || []); setBusy(false); })
+      .catch(function() { setBusy(false); setItems([]); });
+  }, []);
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl text-white font-bold">Latest Recalls</h2>
+        <button onClick={props.onBack}
+          className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+          ← Back to Search
+        </button>
+      </div>
+      <p className="text-gray-400 text-sm mb-5">Most recent Class I and Class II FDA recalls.</p>
+      {busy ? (
+        <p className="text-gray-500 text-sm">Loading…</p>
+      ) : (items === null || items.length === 0) ? (
+        <div className="card-steel rounded-lg p-5 text-center">
+          <p className="text-gray-300">No recent Class I/II recalls available.</p>
+        </div>
+      ) : items.map(function(r) {
+        return (
+          <RecallCard key={r.id} recall={r}>
+            <SaveButtons brand={r.brand} product_name={null} upc={r.upc || null} />
+          </RecallCard>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// ── CONFIRMED SAVE BUTTONS ────────────────────────────────────────────────────
+// Used when user is saving an unrecognized/typo'd brand. Forces an explicit
+// "yes I really mean this exact spelling" click before the save options appear.
+function ConfirmedSaveButtons(props) {
+  const [confirmed, setConfirmed] = useState(false);
+  if (!confirmed) {
+    return (
+      <button onClick={function(){ setConfirmed(true); }}
+        className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+        Save "{props.brand}" anyway
+      </button>
+    );
+  }
+  return <SaveButtons brand={props.brand} explicit={true} />;
+}
+
+
+// ── SEARCH PAGE ───────────────────────────────────────────────────────────────
+function SearchPage() {
+  const [q, setQ] = useState('');
+  const [searchedTerm, setSearchedTerm] = useState(''); // what was actually searched
+  const [results, setResults] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [showLatest, setShowLatest] = useState(false);
+
+  function doSearch(overrideQ) {
+    const query = ((overrideQ != null ? overrideQ : q) || '').trim();
+    if (query.length < 2) return;
+    if (overrideQ != null) setQ(overrideQ);
+    setBusy(true);
+    setSuggestions([]);
+    setSearchedTerm(query);
+    fetch(API_BASE + '/search?q=' + encodeURIComponent(query))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        setResults(d.results || []);
+        if ((d.results || []).length === 0) {
+          // pull suggestions for the typed term
+          return fetch(API_BASE + '/suggest?q=' + encodeURIComponent(query))
+            .then(function(r) { return r.json(); })
+            .then(function(s) { setSuggestions(s.suggestions || []); });
+        }
+      })
+      .then(function() { setBusy(false); })
+      .catch(function() { setBusy(false); setResults([]); });
+  }
+
+  if (showLatest) {
+    return <LatestRecallsView onBack={function(){ setShowLatest(false); }} />;
+  }
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <h2 className="text-2xl text-white font-bold mb-2">Search Recalls</h2>
+      <p className="text-gray-400 text-sm mb-4">Type a brand or product. We'll check FDA recalls.</p>
+      <div className="flex gap-2 mb-3">
+        <input value={q} onChange={function(e){ setQ(e.target.value); }}
+          onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
+          placeholder="e.g., Reser's, tuna, Cheerios"
+          className="flex-1 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:border-gray-400 focus:outline-none" />
+        <button onClick={function(){ doSearch(); }} disabled={busy}
+          className="px-4 py-2 rounded bg-gray-200 text-gray-900 font-semibold hover:bg-white disabled:opacity-50">
+          {busy ? '...' : 'Search'}
+        </button>
+      </div>
+
+      <button onClick={function(){ setShowLatest(true); }}
+        className="text-sm text-gray-300 hover:text-white underline-offset-2 hover:underline mb-5 inline-block">
+        🆕 See latest recalls →
+      </button>
+
+      {results === null ? (
+        <p className="text-gray-500 text-sm">Search to see results.</p>
+      ) : results.length === 0 ? (
+        <div>
+          <div className="card-steel rounded-lg p-5 mb-3">
+            <p className="text-emerald-300 text-lg font-semibold mb-1">No active recalls</p>
+            <p className="text-gray-400 text-sm">
+              We checked the FDA database for <span className="text-white">"{searchedTerm}"</span> — nothing found.
+            </p>
+          </div>
+
+          {suggestions.length > 0 ? (
+            <div className="card-steel rounded-lg p-4 mb-3">
+              <p className="text-gray-300 text-sm mb-3">Did you mean:</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map(function(s, i) {
+                  return (
+                    <button key={i} onClick={function(){ doSearch(s.brand); }}
+                      className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+                      {s.brand}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="card-steel rounded-lg p-4">
+            {suggestions.length > 0 ? (
+              <p className="text-gray-300 text-sm font-semibold mb-2">Or save your exact spelling</p>
+            ) : (
+              <p className="text-red-300 text-sm font-semibold mb-2">⚠ We don't recognize this brand</p>
+            )}
+            {suggestions.length > 0 ? (
+              <p className="text-gray-300 text-sm mb-3">
+                If you really meant <span className="text-white">"{searchedTerm}"</span> exactly, you can save it. We'll watch only this spelling.
+              </p>
+            ) : (
+              <p className="text-gray-300 text-sm mb-3">
+                <span className="text-white">"{searchedTerm}"</span> isn't in our recall database, and we couldn't find a similar brand. It may be misspelled, or simply has never had a recall.
+              </p>
+            )}
+            <p className="text-gray-400 text-xs mb-3">
+              We won't match recalls under different spellings of the same brand.
+            </p>
+            <ConfirmedSaveButtons brand={searchedTerm} />
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="text-gray-400 text-sm mb-3">{results.length} recall{results.length === 1 ? '' : 's'} found for "{searchedTerm}"</p>
+          {results.map(function(r) {
+            return (
+              <RecallCard key={r.id} recall={r}>
+                <SaveButtons brand={r.brand} product_name={null} upc={r.upc || null} />
+              </RecallCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DRAWER ────────────────────────────────────────────────────────────────────
+function ItemDrawer(props) {
+  const item = props.item;
+  const [recall, setRecall] = useState(null);
+  const [hasRecall, setHasRecall] = useState(item.has_recall);
+  const [busy, setBusy] = useState(true);
+  const [lastChecked, setLastChecked] = useState(item.last_checked);
+
+  useEffect(function() {
+    setBusy(true);
+    fetch(API_BASE + '/watchlist/' + item.id + '/refresh', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        setBusy(false);
+        setRecall(d.recall || null);
+        setHasRecall(d.has_recall);
+        setLastChecked(d.last_checked);
+      })
+      .catch(function() { setBusy(false); });
+  }, [item.id]);
+
+  function moveTo(monitoring) {
+    fetch(API_BASE + '/watchlist/' + item.id + '/move', {
+      method: 'PATCH',
+      headers: jsonHeaders(),
+      body: JSON.stringify({ monitoring: monitoring })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        if (props.onChanged) props.onChanged();
+        props.onClose();
+      });
+  }
+
+  function deleteItem() {
+    fetch(API_BASE + '/watchlist/' + item.id, {
+      method: 'DELETE',
+      headers: authHeaders()
+    })
+      .then(function() {
+        if (props.onChanged) props.onChanged();
+        props.onClose();
+      });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 drawer-backdrop flex items-end justify-center" onClick={props.onClose}>
+      <div className="card-steel rounded-t-2xl w-full max-w-lg p-5 max-h-[85vh] overflow-y-auto scrollbar-thin"
+        onClick={function(e){ e.stopPropagation(); }}>
+        <div className="flex items-start justify-between mb-2">
+          <div>
+            <p className="text-white text-xl font-bold">{item.brand}</p>
+            {item.product_name ? <p className="text-gray-400 text-sm">{item.product_name}</p> : null}
+            {item.upc ? <p className="text-gray-500 text-xs mt-1">UPC: {item.upc}</p> : null}
+          </div>
+          <button onClick={props.onClose} className="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <p className="text-gray-500 text-xs mb-4">
+          {busy ? 'Rechecking…' : (lastChecked ? 'Last checked ' + fmtDate(lastChecked) : '')}
+        </p>
+
+        {busy ? (
+          <p className="text-gray-400 text-sm py-4">Looking up latest recalls…</p>
+        ) : hasRecall && recall ? (
+          <div>
+            <p className="text-red-300 text-sm font-semibold mb-2">⚠ Recall match found</p>
+            <RecallCard recall={recall} />
+          </div>
+        ) : (
+          <div className="card-steel rounded-lg p-4 mb-3">
+            <p className="text-emerald-300 font-semibold">No active recalls</p>
+            <p className="text-gray-400 text-sm mt-1">No FDA recall currently matches this item.</p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mt-4">
+          {item.monitoring ? (
+            <button onClick={function(){ moveTo(false); }}
+              className="text-xs px-3 py-1.5 rounded bg-slate-700 text-slate-100 border border-slate-400 hover:bg-slate-600">
+              Move to Pantry
+            </button>
+          ) : (
+            <button onClick={function(){ moveTo(true); }}
+              className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+              Move to Watchlist
+            </button>
+          )}
+          <button onClick={deleteItem}
+            className="text-xs px-3 py-1.5 rounded bg-red-900/50 text-red-100 border border-red-700 hover:bg-red-800/50">
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── WATCHLIST PAGE ────────────────────────────────────────────────────────────
+function WatchlistPage(props) {
+  // props: items, onChanged
+  const monitoring = props.items.filter(function(i){ return i.monitoring; });
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <h2 className="text-2xl text-white font-bold mb-2">Watchlist</h2>
+      <p className="text-gray-400 text-sm mb-5">Items we check every 12 hours. Alerts fire on new recalls.</p>
+      {monitoring.length === 0 ? (
+        <div className="card-steel rounded-lg p-5 text-center">
+          <p className="text-gray-300 mb-1">Nothing on your Watchlist yet</p>
+          <p className="text-gray-500 text-sm">Search for a brand and tap "Add to Watchlist".</p>
+        </div>
+      ) : (
+        monitoring.map(function(item) {
+          return (
+            <button key={item.id} onClick={function(){ props.onOpen(item); }}
+              className="w-full text-left card-steel rounded-lg p-4 mb-3 hover:bg-gray-700/40">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-white font-semibold">{item.brand}</p>
+                  {item.product_name ? <p className="text-gray-400 text-sm">{item.product_name}</p> : null}
+                </div>
+                {item.has_recall ? (
+                  <span className="alert-pill text-white text-xs px-2 py-1 rounded font-bold">RECALL</span>
+                ) : (
+                  <span className="text-emerald-300 text-xs">✓</span>
+                )}
+              </div>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ── PANTRY PAGE ───────────────────────────────────────────────────────────────
+function PantryPage(props) {
+  const pantry = props.items.filter(function(i){ return !i.monitoring; });
+  return (
+    <div className="pantry-page-bg px-4 pt-4 pb-24">
+      <div className="flex items-center gap-2 mb-2">
+        <h2 className="text-3xl font-bold text-white tracking-widest">PANTRY</h2>
+      </div>
+      <p className="text-gray-200 text-sm mb-5 bg-black/40 inline-block px-2 py-1 rounded">Saved items you can check anytime. No alerts — just tap to recheck.</p>
+      {pantry.length === 0 ? (
+        <div className="card-steel rounded-lg p-5 text-center">
+          <p className="text-gray-200 mb-1">Your Pantry is empty</p>
+          <p className="text-gray-400 text-sm">Save items you want to check later but don't need pinged about.</p>
+        </div>
+      ) : (
+        pantry.map(function(item) {
+          return (
+            <button key={item.id} onClick={function(){ props.onOpen(item); }}
+              className="w-full text-left card-steel rounded-lg p-4 mb-3 hover:bg-gray-700/40">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <p className="text-white font-semibold">{item.brand}</p>
+                  {item.product_name ? <p className="text-gray-400 text-sm">{item.product_name}</p> : null}
+                </div>
+                <span className="text-slate-300 text-xs">tap to check</span>
+              </div>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+// ── ALERTS PAGE ───────────────────────────────────────────────────────────────
+function AlertsPage(props) {
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(true);
+
+  function load() {
+    setBusy(true);
+    fetch(API_BASE + '/notifications', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setItems(d.items || []); setBusy(false); })
+      .catch(function() { setBusy(false); });
+  }
+  useEffect(load, []);
+
+  function dismiss(id) {
+    fetch(API_BASE + '/notifications/' + id, { method: 'DELETE', headers: authHeaders() })
+      .then(load);
+  }
+
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <h2 className="text-2xl text-white font-bold mb-2">Alerts</h2>
+      <p className="text-gray-400 text-sm mb-5">New recall matches on your Watchlist.</p>
+      {busy ? <p className="text-gray-500 text-sm">Loading…</p> :
+        items.length === 0 ? (
+          <div className="card-steel rounded-lg p-5 text-center">
+            <p className="text-emerald-300 font-semibold mb-1">All clear</p>
+            <p className="text-gray-400 text-sm">No active alerts on your Watchlist.</p>
+          </div>
+        ) : items.map(function(n) {
+          return (
+            <div key={n.id} className="card-steel rounded-lg p-4 mb-3 border-l-4 border-red-600">
+              <p className="text-white font-semibold mb-1">{n.brand}{n.product_name ? ' · ' + n.product_name : ''}</p>
+              <p className="text-gray-300 text-sm mb-3">{n.message}</p>
+              <div className="flex gap-2">
+                <button onClick={function(){ dismiss(n.id); }}
+                  className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+                  Dismiss
+                </button>
+              </div>
+              <p className="text-gray-500 text-xs mt-2">{fmtDate(n.created_at)}</p>
+            </div>
+          );
+        })
+      }
+    </div>
+  );
+}
+
+// ── ABOUT PAGE ────────────────────────────────────────────────────────────────
+function AboutPage(props) {
+  function logout() {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch (e) {}
+    props.onLogout();
+  }
+  return (
+    <div className="px-4 pt-4 pb-24">
+      <h2 className="text-2xl text-white font-bold mb-2">About Mealwatch</h2>
+      <p className="text-gray-300 text-sm mb-4">Your pantry, watching your back.</p>
+
+      <div className="card-steel rounded-lg p-4 mb-4">
+        <p className="text-white font-semibold mb-2">How it works</p>
+        <p className="text-gray-300 text-sm mb-2">
+          Mealwatch checks the FDA's recall database for products you tell it to watch.
+        </p>
+        <p className="text-gray-300 text-sm mb-2">
+          <span className="text-white">Watchlist</span> — items we check every 12 hours. We'll alert you on new recalls.
+        </p>
+        <p className="text-gray-300 text-sm">
+          <span className="text-slate-100">Pantry</span> — items you save for later, like things in your actual pantry. No alerts; tap any item to recheck on demand.
+        </p>
+      </div>
+
+      <div className="card-steel rounded-lg p-4 mb-4">
+        <p className="text-white font-semibold mb-2">Coming soon</p>
+        <p className="text-gray-300 text-sm">Barcode scanner, faster alerts, and auto-Pantry from anything you scan. Premium tier.</p>
+      </div>
+
+      <div className="card-steel rounded-lg p-4 mb-4">
+        <p className="text-white font-semibold mb-2">Account</p>
+        <p className="text-gray-400 text-sm mb-3">{props.email}</p>
+        <button onClick={logout}
+          className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+          Sign out
+        </button>
+      </div>
+
+      <p className="text-gray-500 text-xs text-center mt-6">
+        Data: U.S. FDA Food Enforcement (openFDA). Updated every 6 hours.<br/>
+        Mealwatch is informational and does not replace official recall sources.
+      </p>
+    </div>
+  );
+}
+
+// ── BOTTOM NAV ────────────────────────────────────────────────────────────────
+function BottomNav(props) {
+  const tabs = [
+    { id: 'search',    label: 'Search'    },
+    { id: 'watchlist', label: 'Watchlist' },
+    { id: 'pantry',    label: 'Pantry'    },
+    { id: 'about',     label: 'About'     },
+    { id: 'alerts',    label: 'Alerts'    }
+  ];
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-700 bg-[#1c1f23] py-2 px-1">
+      <div className="flex justify-around items-center max-w-lg mx-auto">
+        {tabs.map(function(t) {
+          const active = props.page === t.id;
+          let cls = "nav-btn flex-1 mx-0.5 py-2 text-xs rounded-lg border " + (active
+            ? "nav-btn-active text-white "
+            : "border-transparent text-gray-400 hover:text-gray-200 ");
+          return (
+            <button key={t.id} className={cls} onClick={function(){ props.onChange(t.id); }}>
+              {t.label}
+              {t.id === 'alerts' && props.alertCount > 0 ?
+                <span className="ml-1 inline-block bg-red-600 text-white text-[10px] px-1.5 rounded-full">{props.alertCount}</span>
+                : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(getStoredUser());
+  const [apiVersion, setApiVersion] = useState('...');
+  const [page, setPage] = useState('search');
+  const [items, setItems] = useState([]);
+  const [drawerItem, setDrawerItem] = useState(null);
+  const [alertCount, setAlertCount] = useState(0);
+
+  useEffect(function() {
+    fetch(API_BASE + '/health')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setApiVersion(d.version || '?'); })
+      .catch(function() { setApiVersion('offline'); });
+  }, []);
+
+  function loadWatchlist() {
+    if (!getToken()) return;
+    fetch(API_BASE + '/watchlist', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setItems(d.items || []); })
+      .catch(function() {});
+  }
+  function loadAlertCount() {
+    if (!getToken()) return;
+    fetch(API_BASE + '/notifications', { headers: authHeaders() })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setAlertCount((d.items || []).length); })
+      .catch(function() {});
+  }
+
+  useEffect(function() {
+    if (user) {
+      loadWatchlist();
+      loadAlertCount();
+    }
+  }, [user, page]);
+
+  if (!user) {
+    return <LoginScreen onAuth={function(u){ setUser(u); }} />;
+  }
+
+  return (
+    <div className="app-bg min-h-screen">
+      <header className="px-4 pt-4 pb-2 flex justify-between items-center">
+        <h1 className="text-white text-xl font-bold tracking-wide">Mealwatch</h1>
+        <p className="text-gray-500 text-xs">{user.email}</p>
+      </header>
+
+      <main>
+        {page === 'search' && <SearchPage />}
+        {page === 'watchlist' && <WatchlistPage items={items} onOpen={setDrawerItem} />}
+        {page === 'pantry' && <PantryPage items={items} onOpen={setDrawerItem} />}
+        {page === 'about' && <AboutPage email={user.email} onLogout={function(){ setUser(null); }} />}
+        {page === 'alerts' && <AlertsPage />}
+      </main>
+
+      <BottomNav page={page} onChange={setPage} alertCount={alertCount} />
+
+      {drawerItem ? (
+        <ItemDrawer item={drawerItem}
+          onClose={function(){ setDrawerItem(null); }}
+          onChanged={function(){ loadWatchlist(); loadAlertCount(); }} />
+      ) : null}
+
+      <p className="fixed bottom-16 left-1/2 -translate-x-1/2 text-gray-500 text-[10px] bg-black/40 px-2 py-0.5 rounded-full z-30">
+        app v{APP_VERSION} · api v{apiVersion}
+      </p>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
 </html>
