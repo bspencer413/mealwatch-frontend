@@ -69,7 +69,7 @@ const { useState, useEffect, useRef } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.5';
+const APP_VERSION = '0.1.6';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -214,9 +214,9 @@ function RecallCard(props) {
 
 // ── SAVE BUTTONS ──────────────────────────────────────────────────────────────
 function SaveButtons(props) {
-  // props: brand, product_name (optional), upc (optional), onSaved
+  // props: brand, product_name (optional), upc (optional), onSaved, explicit
   const [busy, setBusy] = useState(false);
-  const [savedAs, setSavedAs] = useState(null); // 'watchlist' | 'pantry' | null
+  const [savedAs, setSavedAs] = useState(null); // 'watchlist' | 'pantry' | 'duplicate' | null
 
   function save(monitoring) {
     if (!props.brand) return;
@@ -234,28 +234,38 @@ function SaveButtons(props) {
       .then(function(r) { return r.json(); })
       .then(function(d) {
         setBusy(false);
-        setSavedAs(monitoring ? 'watchlist' : 'pantry');
+        if (d.duplicate) {
+          setSavedAs('duplicate');
+        } else {
+          setSavedAs(monitoring ? 'watchlist' : 'pantry');
+        }
         if (props.onSaved) props.onSaved(d);
       })
       .catch(function() { setBusy(false); });
   }
 
   if (savedAs === 'watchlist') {
-    return <p className="text-emerald-300 text-xs">✓ Added to Watchlist</p>;
+    return <p className="text-emerald-300 text-xs">✓ Added to Watchlist — we'll alert you on new recalls</p>;
   }
   if (savedAs === 'pantry') {
-    return <p className="text-amber-300 text-xs pantry-text-glow">✓ Saved to Pantry</p>;
+    return <p className="text-amber-300 text-xs pantry-text-glow">✓ Saved to Pantry — tap any time to recheck</p>;
   }
+  if (savedAs === 'duplicate') {
+    return <p className="text-gray-400 text-xs">Already on your list. Check Watchlist or Pantry tab.</p>;
+  }
+
+  const watchLabel = props.explicit ? "Watch \"" + props.brand + "\"" : "Add to Watchlist";
+  const pantryLabel = props.explicit ? "Save \"" + props.brand + "\" to Pantry" : "Save to Pantry";
 
   return (
     <div className="flex gap-2 flex-wrap">
       <button onClick={function(){ save(true); }} disabled={busy}
         className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600 disabled:opacity-50">
-        Add to Watchlist
+        {watchLabel}
       </button>
       <button onClick={function(){ save(false); }} disabled={busy}
         className="text-xs px-3 py-1.5 rounded bg-amber-900/50 text-amber-100 border border-amber-700 hover:bg-amber-800/50 disabled:opacity-50">
-        Save to Pantry
+        {pantryLabel}
       </button>
     </div>
   );
@@ -264,16 +274,30 @@ function SaveButtons(props) {
 // ── SEARCH PAGE ───────────────────────────────────────────────────────────────
 function SearchPage() {
   const [q, setQ] = useState('');
-  const [results, setResults] = useState(null); // null=initial, []=no results, [...]=results
+  const [searchedTerm, setSearchedTerm] = useState(''); // what was actually searched
+  const [results, setResults] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
   const [busy, setBusy] = useState(false);
 
-  function doSearch() {
-    const query = (q || '').trim();
+  function doSearch(overrideQ) {
+    const query = ((overrideQ != null ? overrideQ : q) || '').trim();
     if (query.length < 2) return;
+    if (overrideQ != null) setQ(overrideQ);
     setBusy(true);
+    setSuggestions([]);
+    setSearchedTerm(query);
     fetch(API_BASE + '/search?q=' + encodeURIComponent(query))
       .then(function(r) { return r.json(); })
-      .then(function(d) { setBusy(false); setResults(d.results || []); })
+      .then(function(d) {
+        setResults(d.results || []);
+        if ((d.results || []).length === 0) {
+          // pull suggestions for the typed term
+          return fetch(API_BASE + '/suggest?q=' + encodeURIComponent(query))
+            .then(function(r) { return r.json(); })
+            .then(function(s) { setSuggestions(s.suggestions || []); });
+        }
+      })
+      .then(function() { setBusy(false); })
       .catch(function() { setBusy(false); setResults([]); });
   }
 
@@ -286,7 +310,7 @@ function SearchPage() {
           onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
           placeholder="e.g., Reser's, tuna, Cheerios"
           className="flex-1 px-3 py-2 rounded bg-gray-800 text-white border border-gray-600 focus:border-gray-400 focus:outline-none" />
-        <button onClick={doSearch} disabled={busy}
+        <button onClick={function(){ doSearch(); }} disabled={busy}
           className="px-4 py-2 rounded bg-gray-200 text-gray-900 font-semibold hover:bg-white disabled:opacity-50">
           {busy ? '...' : 'Search'}
         </button>
@@ -295,15 +319,40 @@ function SearchPage() {
       {results === null ? (
         <p className="text-gray-500 text-sm">Search to see results.</p>
       ) : results.length === 0 ? (
-        <div className="card-steel rounded-lg p-5 text-center">
-          <p className="text-emerald-300 text-lg font-semibold mb-1">No active recalls</p>
-          <p className="text-gray-400 text-sm mb-4">Nothing matches "{q}" in our recall database.</p>
-          <p className="text-gray-500 text-xs mb-3">Want to be notified if that changes?</p>
-          <SaveButtons brand={q} />
+        <div>
+          <div className="card-steel rounded-lg p-5 mb-3">
+            <p className="text-emerald-300 text-lg font-semibold mb-1">No active recalls</p>
+            <p className="text-gray-400 text-sm">
+              We checked the FDA database for <span className="text-white">"{searchedTerm}"</span> — nothing found.
+            </p>
+          </div>
+
+          {suggestions.length > 0 ? (
+            <div className="card-steel rounded-lg p-4 mb-3">
+              <p className="text-gray-300 text-sm mb-3">Did you mean:</p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map(function(s, i) {
+                  return (
+                    <button key={i} onClick={function(){ doSearch(s.brand); }}
+                      className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+                      {s.brand}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="card-steel rounded-lg p-4">
+            <p className="text-gray-300 text-sm mb-3">
+              Want to be alerted if <span className="text-white">"{searchedTerm}"</span> is recalled later?
+            </p>
+            <SaveButtons brand={searchedTerm} explicit={true} />
+          </div>
         </div>
       ) : (
         <div>
-          <p className="text-gray-400 text-sm mb-3">{results.length} recall{results.length === 1 ? '' : 's'} found</p>
+          <p className="text-gray-400 text-sm mb-3">{results.length} recall{results.length === 1 ? '' : 's'} found for "{searchedTerm}"</p>
           {results.map(function(r) {
             return (
               <RecallCard key={r.id} recall={r}>
