@@ -22,10 +22,11 @@
 <style>
   * { -webkit-tap-highlight-color: transparent; font-family: Georgia, 'Times New Roman', serif; box-sizing: border-box; }
   html, body { height: 100%; overflow-x: hidden; margin: 0; padding: 0; background: #1c1f23; }
-  /* Real brushed stainless steel image — global app background. */
+  /* Real brushed stainless steel image — global app background.
+     Light overlay only, so the texture shows through. */
   .app-bg {
     background-image:
-      linear-gradient(rgba(20,22,26,0.55), rgba(20,22,26,0.65)),
+      linear-gradient(rgba(20,22,26,0.25), rgba(20,22,26,0.35)),
       url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/steel_bg.jpg');
     background-size: cover;
     background-position: center;
@@ -74,7 +75,7 @@ const { useState, useEffect, useRef } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.10';
+const APP_VERSION = '0.1.11';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -276,6 +277,23 @@ function SaveButtons(props) {
   );
 }
 
+// ── CONFIRMED SAVE BUTTONS ────────────────────────────────────────────────────
+// Used when user is saving an unrecognized/typo'd brand. Forces an explicit
+// "yes I really mean this exact spelling" click before the save options appear.
+function ConfirmedSaveButtons(props) {
+  const [confirmed, setConfirmed] = useState(false);
+  if (!confirmed) {
+    return (
+      <button onClick={function(){ setConfirmed(true); }}
+        className="text-xs px-3 py-1.5 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+        Save "{props.brand}" anyway
+      </button>
+    );
+  }
+  return <SaveButtons brand={props.brand} explicit={true} />;
+}
+
+
 // ── SEARCH PAGE ───────────────────────────────────────────────────────────────
 function SearchPage() {
   const [q, setQ] = useState('');
@@ -349,10 +367,24 @@ function SearchPage() {
           ) : null}
 
           <div className="card-steel rounded-lg p-4">
-            <p className="text-gray-300 text-sm mb-3">
-              Want to be alerted if <span className="text-white">"{searchedTerm}"</span> is recalled later?
+            {suggestions.length > 0 ? (
+              <p className="text-gray-300 text-sm font-semibold mb-2">Or save your exact spelling</p>
+            ) : (
+              <p className="text-red-300 text-sm font-semibold mb-2">⚠ We don't recognize this brand</p>
+            )}
+            {suggestions.length > 0 ? (
+              <p className="text-gray-300 text-sm mb-3">
+                If you really meant <span className="text-white">"{searchedTerm}"</span> exactly, you can save it. We'll watch only this spelling.
+              </p>
+            ) : (
+              <p className="text-gray-300 text-sm mb-3">
+                <span className="text-white">"{searchedTerm}"</span> isn't in our recall database, and we couldn't find a similar brand. It may be misspelled, or simply has never had a recall.
+              </p>
+            )}
+            <p className="text-gray-400 text-xs mb-3">
+              We won't match recalls under different spellings of the same brand.
             </p>
-            <SaveButtons brand={searchedTerm} explicit={true} />
+            <ConfirmedSaveButtons brand={searchedTerm} />
           </div>
         </div>
       ) : (
