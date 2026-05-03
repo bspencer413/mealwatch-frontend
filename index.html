@@ -25,7 +25,7 @@
   .app-bg {
     background-image:
       linear-gradient(rgba(20,22,26,0.25), rgba(20,22,26,0.35)),
-      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/steel_bg.jpg');
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -77,9 +77,10 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.21';
+const APP_VERSION = '0.1.23';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
+const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getToken() {
@@ -660,6 +661,9 @@ function AlertsPage(props) {
 
 // ── ABOUT PAGE ────────────────────────────────────────────────────────────────
 function AboutPage(props) {
+  const [showDangerZone, setShowDangerZone] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   function logout() {
     try {
       localStorage.removeItem(TOKEN_KEY);
@@ -667,43 +671,145 @@ function AboutPage(props) {
     } catch (e) {}
     props.onLogout();
   }
+
   return (
-    <PageCard>
-      <CardPageHeader title="About Mealwatch" subtitle="Your pantry, watching your back." />
+    <div className="px-3 pt-6 pb-32 flex justify-center">
+      <div className="w-full max-w-2xl space-y-4">
 
-      <div className="card-recall rounded-lg p-4 mb-4">
-        <h3 className="text-white text-2xl font-bold mb-3 text-center">How it works</h3>
-        <p className="text-white text-base mb-3">
-          Mealwatch checks the FDA recall database for products you tell it to watch.
-        </p>
-        <p className="text-white text-base mb-3">
-          <span className="font-bold">Watchlist</span> — items we check every 12 hours and alert you on new recalls.
-        </p>
-        <p className="text-white text-base">
-          <span className="font-bold">Pantry</span> — items saved for later reference. No alerts. Open any item to recheck on demand.
-        </p>
-      </div>
-
-      <div className="card-recall rounded-lg p-4 mb-4">
-        <h3 className="text-white text-2xl font-bold mb-3 text-center">Coming soon</h3>
-        <p className="text-white text-base">Barcode scanner, faster alerts, and auto-Pantry from anything you scan.</p>
-      </div>
-
-      <div className="card-recall rounded-lg p-4 mb-4">
-        <h3 className="text-white text-2xl font-bold mb-3 text-center">Account</h3>
-        <p className="text-white text-base mb-3 text-center">{props.email}</p>
-        <div className="text-center">
-          <button onClick={logout}
-            className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-            Sign out
-          </button>
+        {/* Hero card */}
+        <div className="card-mw rounded-2xl p-5">
+          <div className="mb-3 pb-2 border-b border-gray-600/40 text-center">
+            <h2 className="text-4xl font-black text-white tracking-wide">About</h2>
+            <h2 className="text-4xl font-black text-white tracking-wide">Mealwatch</h2>
+          </div>
+          <p className="text-white italic text-xl text-center mb-3">v{APP_VERSION}</p>
+          <div className="flex items-center gap-4 mb-4">
+            <img src={BILL_PHOTO} alt="Bill Spencer"
+              className="w-14 h-14 rounded-full object-cover border-2 border-gray-400 shadow-lg shrink-0" />
+            <div>
+              <p className="font-bold text-white text-xl">Bill Spencer</p>
+              <p className="text-white italic text-xl">Founder</p>
+              <a href="mailto:hello@meal.watch" className="text-white underline text-xl mt-1 block">hello@meal.watch</a>
+            </div>
+          </div>
+          <p className="text-white text-2xl font-bold italic mb-3">Your pantry, watching your back.</p>
+          <div className="space-y-3 text-white text-xl leading-relaxed">
+            <p>Recalls happen every day. Most people never hear about them — until something gets pulled off the shelf weeks after they ate it.</p>
+            <p>"Just check the news," they say. But that's easier said than done.</p>
+            <p>So we built Mealwatch — a simple, focused way to know what's been recalled, before you take another bite.</p>
+            <p>Mealwatch monitors official FDA food recall data on your behalf. No ads. No paywalls. Just clear, timely answers.</p>
+          </div>
         </div>
-      </div>
 
-      <p className="text-white text-sm text-center mt-4">
-        We use official sources for recall data.
-      </p>
-    </PageCard>
+        {/* How it works */}
+        <div className="card-mw rounded-2xl p-5">
+          <h3 className="text-white text-2xl font-bold mb-4 text-center">How it works</h3>
+          <div className="space-y-4">
+            <div className="flex gap-3 items-start">
+              <span className="text-white text-2xl font-black w-7 shrink-0">1.</span>
+              <p className="text-white text-xl">Search for a brand or product to see if it's been recalled.</p>
+            </div>
+            <div className="flex gap-3 items-start">
+              <span className="text-white text-2xl font-black w-7 shrink-0">2.</span>
+              <p className="text-white text-xl">Add it to your Watchlist. We'll check every 12 hours and alert you if a recall hits.</p>
+            </div>
+            <div className="flex gap-3 items-start">
+              <span className="text-white text-2xl font-black w-7 shrink-0">3.</span>
+              <p className="text-white text-xl">No longer worried about an item? Save it to your Pantry — no alerts, just tap any time to recheck.</p>
+            </div>
+            <div className="flex gap-3 items-start">
+              <span className="text-white text-2xl font-black w-7 shrink-0">4.</span>
+              <p className="text-white text-xl">Mealwatch is free to use. Future features may include optional upgrades.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* About Alerts */}
+        <div className="card-mw rounded-2xl p-5">
+          <h3 className="text-white text-2xl font-bold mb-3">About Alerts</h3>
+          <div className="space-y-2 text-white text-xl leading-relaxed">
+            <p>The Watchlist is the heart of Mealwatch. When a new FDA recall matches something on your Watchlist, you'll see an Alert in the app.</p>
+            <p><strong className="text-white">View</strong> — see the recall details.</p>
+            <p><strong className="text-white">Dismiss</strong> — clear the alert.</p>
+            <p><strong className="text-white">Remove</strong> — open the item and trash it if you no longer care to monitor.</p>
+          </div>
+        </div>
+
+        {/* Privacy Policy */}
+        <div className="card-mw rounded-2xl p-5">
+          <h3 className="font-bold text-white mb-1 text-2xl">Privacy Policy</h3>
+          <p className="text-white text-xl mb-3">Last updated: May 2026</p>
+          <div className="space-y-3 text-white text-xl leading-relaxed">
+            <p><strong className="text-white">We collect:</strong> your email address, watchlist items, search queries, and anonymous usage data.</p>
+            <p><strong className="text-white">How we use it:</strong> We do not sell your personal information. Ever.</p>
+            <p><strong className="text-white">Data sources:</strong> Information is based on official sources, including the U.S. FDA's openFDA Food Enforcement database.</p>
+            <p><strong className="text-white">Your rights:</strong> You may delete your account and all associated data at any time.</p>
+            <p><strong className="text-white">Disclaimer:</strong> Recall information is sourced from public databases and may not be complete or up to date. Mealwatch is informational and does not replace official sources.</p>
+            <a href="mailto:hello@meal.watch" className="text-white underline text-xl">hello@meal.watch</a>
+          </div>
+        </div>
+
+        {/* Try our other Watchlist alert apps */}
+        <div className="card-mw rounded-2xl p-5">
+          <h3 className="text-white text-2xl font-bold mb-3 text-center">Try our other Watchlist alert apps</h3>
+          <div className="space-y-3">
+            <a href="https://3brains.app/apps" target="_blank" rel="noopener noreferrer"
+              className="block w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-center rounded-xl text-xl font-semibold border border-gray-500">
+              See all our apps
+            </a>
+            <a href="https://3brains.app" target="_blank" rel="noopener noreferrer"
+              className="block w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-center rounded-xl text-xl font-semibold border border-gray-500">
+              Visit 3Brains.app
+            </a>
+          </div>
+        </div>
+
+        {/* Account */}
+        <div className="px-1 space-y-3 pb-2">
+          <div className="p-3 bg-black/30 rounded-xl">
+            <p className="font-medium text-white text-xl text-center">{props.email}</p>
+          </div>
+          <button onClick={logout}
+            className="w-full py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-xl text-2xl font-bold border border-gray-500">
+            Sign Out
+          </button>
+          <button onClick={function(){ setShowDangerZone(!showDangerZone); }}
+            className="w-full py-3 text-gray-400 text-xl text-center">
+            {showDangerZone ? 'Hide' : 'Account Removal'}
+          </button>
+          {showDangerZone ? (
+            <div className="space-y-3">
+              {!showDeleteConfirm ? (
+                <button onClick={function(){ setShowDeleteConfirm(true); }}
+                  className="w-full py-4 bg-gray-900/70 border border-red-700 text-red-300 rounded-xl text-xl">
+                  Delete Account
+                </button>
+              ) : (
+                <div className="bg-red-950/60 border border-red-700 rounded-2xl p-5 space-y-3">
+                  <h3 className="font-bold text-red-300 text-xl">Are you sure?</h3>
+                  <p className="text-white text-xl">This will permanently delete your account and all data.</p>
+                  <button
+                    onClick={function(){
+                      // delete-account endpoint not yet wired — placeholder for v0.2
+                      alert('Account deletion is not yet enabled. Contact hello@meal.watch to delete your account.');
+                    }}
+                    className="w-full py-4 bg-red-700 text-white rounded-xl font-bold text-xl">
+                    Yes, Permanently Delete My Account
+                  </button>
+                  <button
+                    onClick={function(){ setShowDeleteConfirm(false); setShowDangerZone(false); }}
+                    className="w-full py-4 bg-gray-800 border border-gray-600 text-white rounded-xl font-medium text-xl">
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <p className="text-white/40 text-center text-sm pb-4">v{APP_VERSION}</p>
+      </div>
+    </div>
   );
 }
 
