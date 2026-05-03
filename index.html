@@ -73,7 +73,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.13';
+const APP_VERSION = '0.1.14';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -452,11 +452,17 @@ function ItemDrawer(props) {
       .catch(function() { setBusy(false); });
   }, [item.id]);
 
-  function moveTo(monitoring) {
-    fetch(API_BASE + '/watchlist/' + item.id + '/move', {
-      method: 'PATCH',
+  function copyTo(monitoring) {
+    // Add a NEW row in the other list. Original stays put.
+    fetch(API_BASE + '/watchlist', {
+      method: 'POST',
       headers: jsonHeaders(),
-      body: JSON.stringify({ monitoring: monitoring })
+      body: JSON.stringify({
+        brand: item.brand,
+        product_name: item.product_name || null,
+        upc: item.upc || null,
+        monitoring: monitoring
+      })
     })
       .then(function(r) { return r.json(); })
       .then(function() {
@@ -511,14 +517,14 @@ function ItemDrawer(props) {
 
         <div className="flex flex-wrap gap-2 mt-4 justify-end">
           {item.monitoring ? (
-            <button onClick={function(){ moveTo(false); }}
+            <button onClick={function(){ copyTo(false); }}
               className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
               Save to Pantry
             </button>
           ) : (
-            <button onClick={function(){ moveTo(true); }}
+            <button onClick={function(){ copyTo(true); }}
               className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-              Move to Watchlist
+              Add to Watchlist
             </button>
           )}
           <button onClick={deleteItem}
@@ -702,19 +708,19 @@ function BottomNav(props) {
     { id: 'alerts',    label: 'Alerts'    }
   ];
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-700 bg-[#1c1f23] py-2 px-1">
-      <div className="flex justify-around items-center max-w-lg mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-700 bg-[#1c1f23] py-3 px-1 safe-area-bottom">
+      <div className="flex justify-around items-center max-w-2xl mx-auto">
         {tabs.map(function(t) {
           const active = props.page === t.id;
-          const cls = "flex-1 mx-0.5 py-2 text-sm rounded-lg " + (active
-            ? "bg-white/10 text-white font-semibold "
-            : "text-gray-300 hover:text-white ");
+          const cls = "flex-1 py-3 text-base rounded-lg " + (active
+            ? "bg-white/15 text-white font-bold "
+            : "text-gray-200 hover:text-white ");
           return (
             <button key={t.id} className={cls}
               onClick={function(){ props.onChange(t.id); }}>
               {t.label}
               {t.id === 'alerts' && props.alertCount > 0 ?
-                <span className="ml-1 inline-block bg-red-600 text-white text-[10px] px-1.5 rounded-full">{props.alertCount}</span>
+                <span className="ml-1 inline-block bg-red-600 text-white text-xs px-2 rounded-full">{props.alertCount}</span>
                 : null}
             </button>
           );
@@ -760,7 +766,18 @@ function App() {
       loadWatchlist();
       loadAlertCount();
     }
-  }, [user, page]);
+  }, [user]);
+
+  // Refresh on tab change to keep counts/lists current, but kicked off async.
+  // setTimeout(0) yields the render frame so the nav switch feels instant.
+  useEffect(function() {
+    if (!user) return;
+    const t = setTimeout(function() {
+      loadWatchlist();
+      loadAlertCount();
+    }, 0);
+    return function(){ clearTimeout(t); };
+  }, [page]);
 
   function handleAuth(u) {
     setUser(u);
