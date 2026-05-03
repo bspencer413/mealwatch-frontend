@@ -8,11 +8,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Mealwatch">
 <title>Mealwatch</title>
-<meta name="description" content="Mealwatch —  Recall alerts for what's in the store or your pantry, before it's on the plate.">
+<meta name="description" content="Mealwatch — what's on your plate, before it's on your plate. Recall alerts for what's in your pantry.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://meal.watch">
-<meta property="og:title" content="Mealwatch — We let you know if your favorit foods have been recalled.">
-<meta property="og:description" content="Recall alerts for what's in the store or your pantry.">
+<meta property="og:title" content="Mealwatch — Your pantry, watching your back.">
+<meta property="og:description" content="Recall alerts for what's in your pantry.">
 <meta property="og:url" content="https://meal.watch">
 <meta property="og:type" content="website">
 <script src="https://cdn.tailwindcss.com"></script>
@@ -25,7 +25,7 @@
   .app-bg {
     background-image:
       linear-gradient(rgba(20,22,26,0.25), rgba(20,22,26,0.35)),
-      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/pantry_b2.jpg');
+      url('https://raw.githubusercontent.com/bspencer413/mealwatch-frontend/main/steel_bg.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -77,9 +77,9 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.23';
-const TOKEN_KEY = 'mealwatch_token';
-const USER_KEY = 'mealwatch_user';
+const APP_VERSION = '0.1.24';
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
 const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -692,10 +692,10 @@ function AboutPage(props) {
               <a href="mailto:hello@meal.watch" className="text-white underline text-xl mt-1 block">hello@meal.watch</a>
             </div>
           </div>
-          <p className="text-white text-2xl font-bold italic mb-3">Learn if your favorite foods are safe.</p>
+          <p className="text-white text-2xl font-bold italic mb-3">Your pantry, watching your back.</p>
           <div className="space-y-3 text-white text-xl leading-relaxed">
             <p>Recalls happen every day. Most people never hear about them — until something gets pulled off the shelf weeks after they ate it.</p>
-            <p>"Just ask Google," they say. But that's easier said than done.</p>
+            <p>"Just check the news," they say. But that's easier said than done.</p>
             <p>So we built Mealwatch — a simple, focused way to know what's been recalled, before you take another bite.</p>
             <p>Mealwatch monitors official FDA food recall data on your behalf. No ads. No paywalls. Just clear, timely answers.</p>
           </div>
@@ -707,15 +707,15 @@ function AboutPage(props) {
           <div className="space-y-4">
             <div className="flex gap-3 items-start">
               <span className="text-white text-2xl font-black w-7 shrink-0">1.</span>
-              <p className="text-white text-xl">Search for a brand or product to see if it's been recalled.  Tap the "See Latest Recalls" button for new recalls.</p>
+              <p className="text-white text-xl">Search for a brand or product to see if it's been recalled.</p>
             </div>
             <div className="flex gap-3 items-start">
               <span className="text-white text-2xl font-black w-7 shrink-0">2.</span>
-              <p className="text-white text-xl">Add it to your Watchlist. We'll check every 12 hours and alert you if a recall his announced.</p>
+              <p className="text-white text-xl">Add it to your Watchlist. We'll check every 12 hours and alert you if a recall hits.</p>
             </div>
             <div className="flex gap-3 items-start">
               <span className="text-white text-2xl font-black w-7 shrink-0">3.</span>
-              <p className="text-white text-xl">For foods you buy frequently? Save it to your Pantry — no alerts, just tap any time to recheck.</p>
+              <p className="text-white text-xl">No longer worried about an item? Save it to your Pantry — no alerts, just tap any time to recheck.</p>
             </div>
             <div className="flex gap-3 items-start">
               <span className="text-white text-2xl font-black w-7 shrink-0">4.</span>
@@ -847,40 +847,27 @@ function BottomNav(props) {
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 function App() {
-  const [user, setUser] = useState(getStoredUser());
+  const [user, setUser] = useState(null);
   const [apiVersion, setApiVersion] = useState('...');
-  const [page, setPage] = useState('search'); // ALWAYS default to search
+  const [page, setPage] = useState('search');
   const [items, setItems] = useState([]);
   const [drawerItem, setDrawerItem] = useState(null);
   const [alertCount, setAlertCount] = useState(0);
 
+  // Cold-start: fetch health, then hydrate auth from localStorage. Mirrors MW canonical.
   useEffect(function() {
     fetch(API_BASE + '/health')
       .then(function(r) { return r.json(); })
       .then(function(d) { setApiVersion(d.version || '?'); })
       .catch(function() { setApiVersion('offline'); });
-  }, []);
 
-  // Verify stored token on app load. ONLY log out on 401 (real auth failure).
-  // Network errors, 5xx, etc. must NOT log the user out — Render free tier
-  // can have cold-start failures that have nothing to do with the token.
-  useEffect(function() {
-    const t = getToken();
-    if (!t) return;
-    fetch(API_BASE + '/account', { headers: authHeaders() })
-      .then(function(r) {
-        if (r.status === 401 || r.status === 403) {
-          try {
-            localStorage.removeItem(TOKEN_KEY);
-            localStorage.removeItem(USER_KEY);
-          } catch (e) {}
-          setUser(null);
-        }
-        // Any other status (200, 5xx, etc): leave user state alone
-      })
-      .catch(function() {
-        // network error: leave user signed in, will retry on next action
-      });
+    try {
+      const t = localStorage.getItem(TOKEN_KEY);
+      const u = localStorage.getItem(USER_KEY);
+      if (t && u) {
+        setUser(JSON.parse(u));
+      }
+    } catch (e) {}
   }, []);
 
   function loadWatchlist() {
