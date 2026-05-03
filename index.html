@@ -77,7 +77,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.18';
+const APP_VERSION = '0.1.19';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -173,7 +173,7 @@ function LoginScreen(props) {
   }
 
   return (
-    <div className="pantry-bg-login min-h-screen flex flex-col items-center pt-4 pb-32 px-4 overflow-y-auto">
+    <div className="pantry-bg-login min-h-screen flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
         <div className="card-mw rounded-2xl p-6">
           <CardPageHeader title="Mealwatch" subtitle="Your pantry, watching your back." />
@@ -760,21 +760,26 @@ function App() {
       .catch(function() { setApiVersion('offline'); });
   }, []);
 
-  // Verify stored token on app load. If invalid/expired, clear it and force re-auth.
+  // Verify stored token on app load. ONLY log out on 401 (real auth failure).
+  // Network errors, 5xx, etc. must NOT log the user out — Render free tier
+  // can have cold-start failures that have nothing to do with the token.
   useEffect(function() {
     const t = getToken();
     if (!t) return;
     fetch(API_BASE + '/account', { headers: authHeaders() })
       .then(function(r) {
-        if (!r.ok) {
+        if (r.status === 401 || r.status === 403) {
           try {
             localStorage.removeItem(TOKEN_KEY);
             localStorage.removeItem(USER_KEY);
           } catch (e) {}
           setUser(null);
         }
+        // Any other status (200, 5xx, etc): leave user state alone
       })
-      .catch(function() {});
+      .catch(function() {
+        // network error: leave user signed in, will retry on next action
+      });
   }, []);
 
   function loadWatchlist() {
