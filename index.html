@@ -77,7 +77,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.19';
+const APP_VERSION = '0.1.20';
 const TOKEN_KEY = 'mealwatch_token';
 const USER_KEY = 'mealwatch_user';
 
@@ -536,12 +536,7 @@ function ItemDrawer(props) {
               className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
               Save to Pantry
             </button>
-          ) : (
-            <button onClick={function(){ copyTo(true); }}
-              className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-              Add to Watchlist
-            </button>
-          )}
+          ) : null}
           <button onClick={deleteItem}
             className="text-base px-4 py-2 rounded bg-red-900/60 text-white border border-red-600 hover:bg-red-800/70">
             🗑 Remove
