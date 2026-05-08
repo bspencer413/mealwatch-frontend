@@ -80,7 +80,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.26';
+const APP_VERSION = '0.1.27';
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
@@ -183,42 +183,23 @@ function LoginScreen(props) {
     <div className="pantry-bg-login min-h-screen flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
       <div className="w-full max-w-sm">
 
-        {/* Big app-name header + tagline outside card, EW pattern */}
+        {/* Big two-line app-name header on background, EW pattern */}
         <div className="text-center mb-6">
           <h1 className="text-white font-black"
             style={{
-              fontSize: '4.5rem',
+              fontSize: '5rem',
               letterSpacing: '0.04em',
               lineHeight: 0.95,
               textTransform: 'uppercase',
               textShadow: '0 4px 16px rgba(0,0,0,0.9)',
-              WebkitTextStroke: '1px #fff'
+              WebkitTextStroke: '1px #fff',
+              margin: 0
             }}>
-            Mealwatch
+            Meal<br/>Watch
           </h1>
-          <p className="text-white mt-3"
-            style={{
-              fontSize: '1.5rem',
-              letterSpacing: '0.02em',
-              lineHeight: 1.1,
-              textShadow: '0 2px 8px rgba(0,0,0,0.9)'
-            }}>
-            Your pantry,<br/>watching your back.
-          </p>
         </div>
 
-        <div className="card-mw rounded-2xl p-6">
-          <div className="flex mb-5 rounded-xl overflow-hidden border border-white/30">
-            <button onClick={function(){ setMode('login'); setErr(''); }}
-              className={"flex-1 py-3 text-xl " + (mode === 'login' ? 'bg-white/20 text-white' : 'bg-transparent text-white/60')}>
-              Sign In
-            </button>
-            <button onClick={function(){ setMode('register'); setErr(''); }}
-              className={"flex-1 py-3 text-xl " + (mode === 'register' ? 'bg-white/20 text-white' : 'bg-transparent text-white/60')}>
-              Create Account
-            </button>
-          </div>
-
+        <div className="card-mw rounded-2xl p-5 space-y-3">
           <input type="email" placeholder="Email address" value={email}
             onChange={function(e){ setEmail(e.target.value); }}
             onFocus={function(e){
@@ -227,7 +208,7 @@ function LoginScreen(props) {
               }, 300);
             }}
             autoComplete="email"
-            className="w-full mb-3 px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
           <input type="password" placeholder="Password" value={password}
             onChange={function(e){ setPassword(e.target.value); }}
             onFocus={function(e){
@@ -235,23 +216,25 @@ function LoginScreen(props) {
                 if (e.target && e.target.scrollIntoView) e.target.scrollIntoView({ block: 'center', behavior: 'smooth' });
               }, 300);
             }}
-            onKeyDown={function(e){ if (e.key === 'Enter') submit(); }}
+            onKeyDown={function(e){ if (e.key === 'Enter') { setMode('login'); submit(); } }}
             autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-            className="w-full mb-4 px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
 
-          {err ? <p className="text-red-300 text-xl mb-3 text-center">{err}</p> : null}
+          {err ? <p className="text-red-300 text-xl text-center">{err}</p> : null}
 
-          <button onClick={submit} disabled={busy}
-            className="w-full py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold hover:bg-gray-100 disabled:opacity-50">
-            {busy ? '...' : (mode === 'register' ? 'Create Account' : 'Sign In')}
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={function(){ setMode('login'); setErr(''); submit(); }} disabled={busy}
+              className="py-4 rounded-xl bg-white text-gray-900 text-2xl font-bold disabled:opacity-50">
+              {busy && mode === 'login' ? '...' : 'Sign In'}
+            </button>
+            <button onClick={function(){ setMode('register'); setErr(''); submit(); }} disabled={busy}
+              className="py-4 rounded-xl bg-white/15 text-white text-2xl font-bold border border-white/40 disabled:opacity-50">
+              {busy && mode === 'register' ? '...' : 'Register'}
+            </button>
+          </div>
 
-          <p className="text-white/50 text-base text-center mt-3">You'll stay signed in automatically</p>
+          <p className="text-white/60 text-base text-center pt-1">You'll stay signed in automatically</p>
         </div>
-
-        <p className="text-white text-xs bg-black/40 px-3 py-1 rounded-full inline-block mt-6 mx-auto block w-fit">
-          app v{APP_VERSION}
-        </p>
       </div>
     </div>
   );
@@ -405,26 +388,50 @@ function SearchPage() {
   }
 
   return (
-    <PageCard>
-      <CardPageHeader title="Search Recalls" subtitle="Type a brand or product to check FDA recalls" />
-
-      <div className="flex gap-2 mb-3">
-        <input value={q} onChange={function(e){ setQ(e.target.value); }}
-          onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
-          placeholder="e.g., Reser's, tuna, Cheerios"
-          className="flex-1 px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        <button onClick={function(){ doSearch(); }} disabled={busy}
-          className="px-5 py-3 text-xl rounded-xl bg-white text-gray-900 font-bold hover:bg-gray-100 disabled:opacity-50">
-          {busy ? '...' : 'Search'}
-        </button>
-      </div>
-
+    <div className="px-3 pt-6 pb-32">
+      {/* Big two-line app-name header on background, EW search-page pattern */}
       <div className="text-center mb-5">
-        <button onClick={function(){ setShowLatest(true); }}
-          className="w-full py-4 text-2xl rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20">
-          🆕 See Latest Recalls →
-        </button>
+        <h1 className="text-white font-black"
+          style={{
+            fontSize: '4.5rem',
+            letterSpacing: '0.04em',
+            lineHeight: 0.95,
+            textTransform: 'uppercase',
+            textShadow: '0 4px 16px rgba(0,0,0,0.9)',
+            WebkitTextStroke: '1px #fff',
+            margin: 0
+          }}>
+          Meal<br/>Watch
+        </h1>
+        <p className="text-white mt-3"
+          style={{
+            fontSize: '1.5rem',
+            letterSpacing: '0.02em',
+            lineHeight: 1.1,
+            textShadow: '0 2px 8px rgba(0,0,0,0.9)'
+          }}>
+          Your pantry,<br/>watching your back.
+        </p>
       </div>
+
+      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto">
+        <div className="flex gap-2 mb-3">
+          <input value={q} onChange={function(e){ setQ(e.target.value); }}
+            onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
+            placeholder="e.g., Reser's, tuna, Cheerios"
+            className="flex-1 px-4 py-3 text-xl rounded-xl bg-white/15 border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <button onClick={function(){ doSearch(); }} disabled={busy}
+            className="px-5 py-3 text-xl rounded-xl bg-white text-gray-900 font-bold hover:bg-gray-100 disabled:opacity-50">
+            {busy ? '...' : 'Search'}
+          </button>
+        </div>
+
+        <div className="text-center mb-5">
+          <button onClick={function(){ setShowLatest(true); }}
+            className="w-full py-4 text-2xl rounded-xl bg-white/15 text-white font-bold border border-white/30 hover:bg-white/20">
+            🆕 See Latest Recalls →
+          </button>
+        </div>
 
       {results === null ? null
         : results.length === 0 ? (
@@ -474,7 +481,8 @@ function SearchPage() {
           })}
         </div>
       )}
-    </PageCard>
+      </div>
+    </div>
   );
 }
 
