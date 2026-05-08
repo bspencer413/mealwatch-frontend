@@ -80,7 +80,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.34';
+const APP_VERSION = '0.1.35';
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
@@ -830,9 +830,9 @@ function AboutPage(props) {
           </div>
         </div>
 
-        {/* Try our other Watchlist alert apps */}
+        {/* Try our other Watchlist apps */}
         <div className="card-mw rounded-2xl p-5">
-          <h3 className="text-white text-2xl font-bold mb-3 text-center">Try our other Watchlist alert apps</h3>
+          <h3 className="text-white text-2xl font-bold mb-3 text-center">Try our other Watchlist apps</h3>
           <div className="space-y-3">
             <a href="https://3brains.app" target="_blank" rel="noopener noreferrer"
               className="block w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-center rounded-xl text-xl font-semibold border border-gray-500">
@@ -1066,5 +1066,9 @@ function App() {
 
 ReactDOM.render(<App />, document.getElementById('root'));
 </script>
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
