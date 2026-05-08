@@ -80,7 +80,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.29';
+const APP_VERSION = '0.1.30';
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
@@ -631,7 +631,7 @@ function ItemDrawer(props) {
 function WatchlistPage(props) {
   const monitoring = props.items.filter(function(i){ return i.monitoring; });
   return (
-    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+    <div className="px-3 pb-32" style={{ paddingTop: '8vh' }}>
       <BackgroundHeader title={"Watchlist (" + monitoring.length + ")"}
         subtitle="Items we check every 12 hours" />
       <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
@@ -668,7 +668,7 @@ function WatchlistPage(props) {
 function PantryPage(props) {
   const pantry = props.items.filter(function(i){ return !i.monitoring; });
   return (
-    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+    <div className="px-3 pb-32" style={{ paddingTop: '8vh' }}>
       <BackgroundHeader title={"Pantry (" + pantry.length + ")"}
         subtitle="Saved items — tap to recheck on demand" />
       <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
@@ -717,7 +717,7 @@ function AlertsPage(props) {
   }
 
   return (
-    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+    <div className="px-3 pb-32" style={{ paddingTop: '8vh' }}>
       <BackgroundHeader title={"Alerts (" + items.length + ")"}
         subtitle="New recall matches on your Watchlist" />
       <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
