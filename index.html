@@ -80,7 +80,7 @@ const { useState, useEffect } = React;
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const API_BASE = 'https://mealwatch-backend.onrender.com';
-const APP_VERSION = '0.1.27';
+const APP_VERSION = '0.1.28';
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 const BILL_PHOTO = 'https://raw.githubusercontent.com/bspencer413/memorial-watch/main/Bill.jpeg';
@@ -128,6 +128,37 @@ function CardPageHeader(props) {
         {props.title}
       </h2>
       {props.subtitle ? <p className="text-gray-200 text-xl mt-1">{props.subtitle}</p> : null}
+    </div>
+  );
+}
+
+// Background-rendered page header: title on the bg photo, not in a card.
+// Used on Watchlist / Pantry / Alerts so the user always knows where they are
+// even as the content scrolls under it.
+function BackgroundHeader(props) {
+  return (
+    <div className="text-center mb-4">
+      <h1 className="text-white font-black"
+        style={{
+          fontSize: '3rem',
+          letterSpacing: '0.06em',
+          lineHeight: 1,
+          textTransform: 'uppercase',
+          textShadow: '0 4px 16px rgba(0,0,0,0.9)',
+          WebkitTextStroke: '1px #fff',
+          margin: 0
+        }}>
+        {props.title}
+      </h1>
+      {props.subtitle ? (
+        <p className="text-white mt-2"
+          style={{
+            fontSize: '1.25rem',
+            textShadow: '0 2px 8px rgba(0,0,0,0.9)'
+          }}>
+          {props.subtitle}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -180,11 +211,12 @@ function LoginScreen(props) {
   }
 
   return (
-    <div className="pantry-bg-login min-h-screen flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
-      <div className="w-full max-w-sm">
+    <div className="pantry-bg-login min-h-screen flex flex-col items-center px-4 overflow-y-auto"
+      style={{ paddingTop: '8vh', paddingBottom: '8vh' }}>
+      <div className="w-full max-w-sm flex-1 flex flex-col">
 
         {/* Big two-line app-name header on background, EW pattern */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-auto">
           <h1 className="text-white font-black"
             style={{
               fontSize: '5rem',
@@ -199,7 +231,7 @@ function LoginScreen(props) {
           </h1>
         </div>
 
-        <div className="card-mw rounded-2xl p-5 space-y-3">
+        <div className="card-mw rounded-2xl p-5 space-y-3 mt-8">
           <input type="email" placeholder="Email address" value={email}
             onChange={function(e){ setEmail(e.target.value); }}
             onFocus={function(e){
@@ -388,7 +420,7 @@ function SearchPage() {
   }
 
   return (
-    <div className="px-3 pt-6 pb-32">
+    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
       {/* Big two-line app-name header on background, EW search-page pattern */}
       <div className="text-center mb-5">
         <h1 className="text-white font-black"
@@ -414,7 +446,7 @@ function SearchPage() {
         </p>
       </div>
 
-      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto">
+      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '4vh' }}>
         <div className="flex gap-2 mb-3">
           <input value={q} onChange={function(e){ setQ(e.target.value); }}
             onKeyDown={function(e){ if (e.key === 'Enter') doSearch(); }}
@@ -591,33 +623,36 @@ function ItemDrawer(props) {
 function WatchlistPage(props) {
   const monitoring = props.items.filter(function(i){ return i.monitoring; });
   return (
-    <PageCard>
-      <CardPageHeader title={"Your Watchlist (" + monitoring.length + ")"} subtitle="Items we check every 12 hours" />
-      {monitoring.length === 0 ? (
-        <p className="text-white text-base text-center py-6">
-          Nothing on your Watchlist yet. Search for a brand and tap Add to Watchlist.
-        </p>
-      ) : (
-        monitoring.map(function(item) {
-          return (
-            <button key={item.id} onClick={function(){ props.onOpen(item); }}
-              className="w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <h3 className="font-bold text-white text-xl">{item.brand}</h3>
-                  {item.product_name ? <p className="text-white text-base">{item.product_name}</p> : null}
+    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+      <BackgroundHeader title={"Watchlist (" + monitoring.length + ")"}
+        subtitle="Items we check every 12 hours" />
+      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
+        {monitoring.length === 0 ? (
+          <p className="text-white text-xl text-center py-6">
+            Nothing on your Watchlist yet. Search for a brand and tap Add to Watchlist.
+          </p>
+        ) : (
+          monitoring.map(function(item) {
+            return (
+              <button key={item.id} onClick={function(){ props.onOpen(item); }}
+                className="w-full text-left card-recall rounded-lg p-4 mb-3 hover:bg-gray-700/40">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-white text-xl">{item.brand}</h3>
+                    {item.product_name ? <p className="text-white text-base">{item.product_name}</p> : null}
+                  </div>
+                  {item.has_recall ? (
+                    <span className="alert-pill text-white text-xs px-2 py-1 rounded font-bold">RECALL</span>
+                  ) : (
+                    <span className="text-emerald-300 text-base">✓</span>
+                  )}
                 </div>
-                {item.has_recall ? (
-                  <span className="alert-pill text-white text-xs px-2 py-1 rounded font-bold">RECALL</span>
-                ) : (
-                  <span className="text-emerald-300 text-base">✓</span>
-                )}
-              </div>
-            </button>
-          );
-        })
-      )}
-    </PageCard>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -625,11 +660,12 @@ function WatchlistPage(props) {
 function PantryPage(props) {
   const pantry = props.items.filter(function(i){ return !i.monitoring; });
   return (
-    <div className="pantry-page-bg">
-      <PageCard>
-        <CardPageHeader title={"Your Pantry (" + pantry.length + ")"} subtitle="Saved items — tap to recheck on demand" />
+    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+      <BackgroundHeader title={"Pantry (" + pantry.length + ")"}
+        subtitle="Saved items — tap to recheck on demand" />
+      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
         {pantry.length === 0 ? (
-          <p className="text-white text-base text-center py-6">
+          <p className="text-white text-xl text-center py-6">
             Your Pantry is empty. From your Watchlist, open an item and tap Save to Pantry.
           </p>
         ) : (
@@ -648,7 +684,7 @@ function PantryPage(props) {
             );
           })
         )}
-      </PageCard>
+      </div>
     </div>
   );
 }
@@ -673,28 +709,31 @@ function AlertsPage(props) {
   }
 
   return (
-    <PageCard>
-      <CardPageHeader title={"Alerts (" + items.length + ")"} subtitle="New recall matches on your Watchlist" />
-      {busy ? <p className="text-white text-base text-center">Loading…</p> :
-        items.length === 0 ? (
-          <p className="text-emerald-300 text-xl font-bold text-center py-4">All clear</p>
-        ) : items.map(function(n) {
-          return (
-            <div key={n.id} className="card-recall rounded-lg p-4 mb-3 border-l-4 border-red-600">
-              <h3 className="text-white text-xl font-bold mb-1">{n.brand}{n.product_name ? ' · ' + n.product_name : ''}</h3>
-              <p className="text-white text-base mb-3">{n.message}</p>
-              <div className="flex gap-2">
-                <button onClick={function(){ dismiss(n.id); }}
-                  className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
-                  Dismiss
-                </button>
+    <div className="px-3 pb-32" style={{ paddingTop: '4vh' }}>
+      <BackgroundHeader title={"Alerts (" + items.length + ")"}
+        subtitle="New recall matches on your Watchlist" />
+      <div className="card-mw rounded-2xl p-5 max-w-2xl mx-auto" style={{ marginTop: '2vh' }}>
+        {busy ? <p className="text-white text-xl text-center">Loading…</p> :
+          items.length === 0 ? (
+            <p className="text-emerald-300 text-xl font-bold text-center py-4">All clear</p>
+          ) : items.map(function(n) {
+            return (
+              <div key={n.id} className="card-recall rounded-lg p-4 mb-3 border-l-4 border-red-600">
+                <h3 className="text-white text-xl font-bold mb-1">{n.brand}{n.product_name ? ' · ' + n.product_name : ''}</h3>
+                <p className="text-white text-base mb-3">{n.message}</p>
+                <div className="flex gap-2">
+                  <button onClick={function(){ dismiss(n.id); }}
+                    className="text-base px-4 py-2 rounded bg-gray-700 text-white border border-gray-500 hover:bg-gray-600">
+                    Dismiss
+                  </button>
+                </div>
+                <p className="text-white text-xs mt-2">{fmtDate(n.created_at)}</p>
               </div>
-              <p className="text-white text-xs mt-2">{fmtDate(n.created_at)}</p>
-            </div>
-          );
+            );
         })
       }
-    </PageCard>
+      </div>
+    </div>
   );
 }
 
@@ -792,10 +831,6 @@ function AboutPage(props) {
         <div className="card-mw rounded-2xl p-5">
           <h3 className="text-white text-2xl font-bold mb-3 text-center">Try our other Watchlist alert apps</h3>
           <div className="space-y-3">
-            <a href="https://3brains.app/apps" target="_blank" rel="noopener noreferrer"
-              className="block w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-center rounded-xl text-xl font-semibold border border-gray-500">
-              See all our apps
-            </a>
             <a href="https://3brains.app" target="_blank" rel="noopener noreferrer"
               className="block w-full py-4 bg-gray-700 hover:bg-gray-600 text-white text-center rounded-xl text-xl font-semibold border border-gray-500">
               Visit 3Brains.app
